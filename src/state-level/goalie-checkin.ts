@@ -1,4 +1,4 @@
-import type { ToneAssessment } from "./engage-tone";
+import type { ToneAssessment } from "./goalie-tone";
 /**
  * The monthly check-in as a list of questions, not a conversation the model
  * is trusted to finish.
@@ -721,7 +721,7 @@ export function checkInValidityEnd(
  * are all "not in progress". The link is a door into that cycle, not a
  * standing credential.
  */
-export function isEngageCheckInInProgress(convo: CheckInProgressConvo, now: Date): boolean {
+export function isGoalieCheckInInProgress(convo: CheckInProgressConvo, now: Date): boolean {
   if (!convo) return false;
   const status = String(convo.status ?? "active");
   if (status === "opted-out" || status === "not-interested" || status === "closed") return false;

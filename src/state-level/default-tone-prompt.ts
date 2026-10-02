@@ -1,13 +1,13 @@
 /**
- * Engage — default AI-nurse system prompt, from the client monthly-check
- * knowledge base. Tenants can override this per-tenant in engage-config; when
+ * Goalie — default AI-nurse system prompt, from the client monthly-check
+ * knowledge base. Tenants can override this per-tenant in goalie-config; when
  * their systemPrompt is empty the service falls back to this default.
  *
  * The {{PLACEHOLDERS}} are filled by prompt-builder.ts from the patient chart.
  * The numbered check-in sequence is driven in code (CHECK_IN_INSTRUCTION /
  * checkInStep). The model asks the current topic; it does not skip, count, or close.
  */
-export const DEFAULT_ENGAGE_TONE_PROMPT = `You classify the latest patient message for a monthly care check-in.
+export const DEFAULT_GOALIE_TONE_PROMPT = `You classify the latest patient message for a monthly care check-in.
 Return ONLY JSON with these keys:
 {"tone":"calm"|"engaged"|"distressed"|"frustrated","readyForQuestions":true|false,"emergency":true|false,"resumeCheckIn":true|false,"skipQuestion":true|false,"wrapUpCheckIn":true|false,"lowMood":true|false,"askedHowAreYou":true|false,"unclear":true|false,"askedAboutChart":true|false,"namedChartTopic":"medications"|"readings"|"diet"|"activity"|"labs"|null,"wantsCareManagerHelp":true|false,"creditedTopics":[],"spokenTopicId":"feeling"|"symptoms"|"medications"|"readings"|"labs"|"diet"|"activity"|"care_help"|"next_checkin"|null,"compareChart":true|false,"askedForChartSlice":true|false,"bareYes":true|false,"takingAsPrescribed":true|false,"extraMedicationName":string|null,"hasHomeReading":true|false}
  

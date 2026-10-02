@@ -1,11 +1,11 @@
-import { generateEngagePatientReply } from './ai/ai';
-import { buildEngageContext, PatientProfile, EngageChatTurn } from './response-level/prompt-builder';
-import { checkInAskInstruction, CHECK_IN_TOPICS, checkInCompleteReply, topicAt } from './state-level/engage-checkin';
-import { assessPatientTone, ToneAssessment, shouldHoldScript } from './state-level/engage-tone';
+import { generateGoaliePatientReply } from './ai/ai';
+import { buildGoalieContext, PatientProfile, GoalieChatTurn } from './response-level/prompt-builder';
+import { checkInAskInstruction, CHECK_IN_TOPICS, checkInCompleteReply, topicAt } from './state-level/goalie-checkin';
+import { assessPatientTone, ToneAssessment, shouldHoldScript } from './state-level/goalie-tone';
 
 export interface ChatSession {
   patient: PatientProfile;
-  turns: EngageChatTurn[];
+  turns: GoalieChatTurn[];
   checkInStep: number;
   checkInSkipCount: number;
   coveredTopics: string[];
@@ -17,7 +17,7 @@ const sessions: Record<string, ChatSession> = {};
 
 export async function handleChatMessage(sessionId: string, message: string): Promise<string> {
   let session = sessions[sessionId];
-  
+
   if (!session) {
     throw new Error('Session not found');
   }
@@ -68,8 +68,8 @@ export async function handleChatMessage(sessionId: string, message: string): Pro
     coveredIds: session.coveredTopics
   });
 
-  const systemPrompt = buildEngageContext(session.patient, instruction, 0, '');
-  const reply = await generateEngagePatientReply(systemPrompt, message, 1000, session.turns);
+  const systemPrompt = buildGoalieContext(session.patient, instruction, 0, '');
+  const reply = await generateGoaliePatientReply(systemPrompt, message, 1000, session.turns);
 
   session.turns.push({ role: 'user', content: message });
   session.turns.push({ role: 'assistant', content: reply });

@@ -1,6 +1,6 @@
-import { DEFAULT_ENGAGE_SYSTEM_PROMPT } from './default-knowledge-base';
+import { DEFAULT_GOALIE_SYSTEM_PROMPT } from './default-knowledge-base';
 
-export interface EngageChatTurn {
+export interface GoalieChatTurn {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
@@ -34,8 +34,8 @@ export interface PatientProfile {
   lastCheckin: string;
 }
 
-export function buildEngageContext(patient: PatientProfile, checkInInstruction: string, readingsNormalCount: number, readingsAbnormal: string): string {
-  let prompt = DEFAULT_ENGAGE_SYSTEM_PROMPT;
+export function buildGoalieContext(patient: PatientProfile, checkInInstruction: string, readingsNormalCount: number, readingsAbnormal: string): string {
+  let prompt = DEFAULT_GOALIE_SYSTEM_PROMPT;
 
   const replacements: Record<string, string> = {
     '{{PERSONA_NAME}}': 'Nurse Assistant',

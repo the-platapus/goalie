@@ -11,7 +11,7 @@ import {
   getOpenAIModel,
   usesCompletionTokensApi,
 } from "../ai/openai-client";
-import { DEFAULT_ENGAGE_TONE_PROMPT } from "./default-tone-prompt";
+import { DEFAULT_GOALIE_TONE_PROMPT } from "./default-tone-prompt";
 
 export type PatientTone = "calm" | "engaged" | "distressed" | "frustrated";
 
@@ -218,7 +218,7 @@ export async function assessPatientTone(
   const cooling = opts.cooldownActive ? "yes" : "no";
   const topic = String(opts.currentTopicId || "").trim() || "unknown";
   const lastNurse = String(opts.lastAssistantText || "").trim().slice(0, 500) || "(none)";
-  const system = DEFAULT_ENGAGE_TONE_PROMPT;
+  const system = DEFAULT_GOALIE_TONE_PROMPT;
 
   try {
     const model = getOpenAIModel();
@@ -233,7 +233,7 @@ export async function assessPatientTone(
     });
     return parseToneAssessment(res.choices?.[0]?.message?.content ?? "");
   } catch (err) {
-    console.warn("[engage] tone classify failed:", (err as Error)?.message || err);
+    console.warn("[goalie] tone classify failed:", (err as Error)?.message || err);
     return emptyToneHold();
   }
 }

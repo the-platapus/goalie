@@ -1,21 +1,21 @@
 import {
   chatCompletionLimitParams,
   createChatCompletion,
-  getEngagePatientOpenAIModel,
+  getGoaliePatientOpenAIModel,
   getOpenAIModel,
   usesCompletionTokensApi,
 } from "./openai-client";
-import type { EngageChatTurn } from "../response-level/prompt-builder";
+import type { GoalieChatTurn } from "../response-level/prompt-builder";
 
 export type ChatReasoningEffort = "low" | "medium" | "high";
 
 /** LLM function shape — injectable so the reply loop is testable without OpenAI. */
-export type EngageLlm = (
+export type GoalieLlm = (
   systemPrompt: string,
   userMessage: string,
   maxChars: number,
   /** Prior turns this cycle (oldest → newest), excluding `userMessage`. */
-  priorTurns?: EngageChatTurn[]
+  priorTurns?: GoalieChatTurn[]
 ) => Promise<string>;
 
 const OPENER =
@@ -26,7 +26,7 @@ async function completeReply(
   systemPrompt: string,
   userMessage: string,
   maxChars: number,
-  priorTurns: EngageChatTurn[] = [],
+  priorTurns: GoalieChatTurn[] = [],
   reasoningEffort?: ChatReasoningEffort
 ): Promise<{ text: string }> {
   // GPT-5 / o-series count reasoning toward the completion budget, so a
@@ -55,17 +55,17 @@ async function completeReply(
  * Shared OpenAI chat helper on OPENAI_MODEL. Used by AI Enrollment, campaign
  * mail, and lead outreach — not the monthly patient check-in.
  */
-export const generateAiReply: EngageLlm = async (systemPrompt, userMessage, maxChars, priorTurns) => {
+export const generateAiReply: GoalieLlm = async (systemPrompt, userMessage, maxChars, priorTurns) => {
   const res = await completeReply(getOpenAIModel(), systemPrompt, userMessage, maxChars, priorTurns, "low");
   return res.text;
 };
 
 /**
- * Monthly CCM/RPM check-in replies (DEFAULT_ENGAGE_SYSTEM_PROMPT and the
+ * Monthly CCM/RPM check-in replies (DEFAULT_GOALIE_SYSTEM_PROMPT and the
  * tenant override of it). Uses HC_OPENAI_MODEL.
  */
-export const generateEngagePatientReply: EngageLlm = async (systemPrompt, userMessage, maxChars, priorTurns) => {
-  const model = getEngagePatientOpenAIModel();
+export const generateGoaliePatientReply: GoalieLlm = async (systemPrompt, userMessage, maxChars, priorTurns) => {
+  const model = getGoaliePatientOpenAIModel();
   const res = await completeReply(
     model,
     systemPrompt,
@@ -79,9 +79,9 @@ export const generateEngagePatientReply: EngageLlm = async (systemPrompt, userMe
 
 /** Drop the just-persisted inbound so it is only the final user message once. */
 export function priorTurnsExcludingCurrent(
-  turns: EngageChatTurn[] | undefined,
+  turns: GoalieChatTurn[] | undefined,
   userMessage: string
-): EngageChatTurn[] {
+): GoalieChatTurn[] {
   const list = [...(turns ?? [])];
   const current = String(userMessage ?? "").trim();
   if (current && list.length && list[list.length - 1].role === "user" && list[list.length - 1].content === current) {

@@ -41,6 +41,6 @@ export function chatCompletionLimitParams(model: string, max_tokens: number, tem
   return { max_tokens, temperature };
 }
 
-export function getEngagePatientOpenAIModel(): string {
+export function getGoaliePatientOpenAIModel(): string {
   return 'gpt-4o';
 }
