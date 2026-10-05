@@ -588,7 +588,7 @@ export function checkInAskInstruction(args: {
     `If they did NOT ask a question, ask ONE question about ${args.topic.label} (id=${args.topic.id})${script}.${rpmNote}${coveredNote} ` +
     `Do not ask them to clarify. Do not start another topic. Do not close the check-in.`;
   if (args.hold) {
-    return `The patient did not answer the check-in question, asked a question, or is pushing back. Address their message naturally. DO NOT ask your check-in question this turn. Do not start another topic.`;
+    return `Address their message naturally. DO NOT ask your check-in question this turn. Do not start another topic. If they mentioned a problem or asked a question, follow up on it.`;
   }
   if (!args.previous) return ask;
   if (args.skipped) return `They skipped "${args.previous.label}". Do not press it. ${ask}`;

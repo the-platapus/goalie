@@ -39,7 +39,7 @@ skipQuestion: true only when they explicitly decline to answer THIS question, st
 resumeCheckIn: true only when a distress pause is active (see above) or the last nurse message was a support or handoff message, AND they express a desire to continue. A bare acknowledgment during normal questioning is false.
 askedHowAreYou: true only when the whole message is asking how the nurse is.
 unclear: true when they indicate they did not hear or understand the question, with no other content.
-readyForQuestions: true when they answered the last nurse question or the current topic with a fact or a short answer. False for: questions to you, unclear, emergency, skip, wrap-up, lowMood, distressed or frustrated tone, chart questions that need an answer first, a newly named problem the nurse should follow up on, a negative response to taking their medicines (the nurse needs to ask why), and a negative response to the next check-in time (the nurse must ask what time works better).
+readyForQuestions: true when they answered the last nurse question or the current topic with a fact or a short answer, OR when they give a bare acknowledgment (like "okay", "thanks", "got it") to a nurse statement. False for: questions to you, unclear, emergency, skip, wrap-up, lowMood, distressed or frustrated tone, chart questions that need an answer first, a newly named problem the nurse should follow up on, a negative response to taking their medicines (the nurse needs to ask why), and a negative response to the next check-in time (the nurse must ask what time works better).
  
 CHART QUESTIONS
 askedAboutChart: true when they ask what is on file / in their chart / record / care plan / what they were prescribed, including appointments or anything else in the record.
@@ -55,7 +55,7 @@ extraMedicationName: the name of a medicine they volunteered (prescription or ov
  
 CHECKLIST CREDIT
 creditedTopics: every checklist id this message clearly answers, even if not yet asked. Never credit a topic for a chart-only question.
-- feeling: how they feel this month, even if they also name a problem.
+- feeling: how they feel this month, even if they also name a problem (e.g. "good", "okay", "under the weather"). Any response to the initial "How have you been feeling" question MUST credit this.
 - symptoms: only a clear denial of problems. A named problem is never credited, so the nurse can follow up first.
 - medications: they named a prescribed medicine, said they take everything as prescribed, gave a simple affirmative to the nurse's medicines question, or gave a reason after the nurse asked why they are not taking them. Not credited for a chart question alone, a simple negative response, or an incidental mention of a medicine taken for a symptom.
 - readings: they gave a home health reading with a value (blood pressure like 150/80, heart rate, blood sugar, weight, temperature, oxygen). Steps, exercise minutes, portions, and medicine doses like 10 mg are NOT readings.
