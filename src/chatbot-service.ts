@@ -1,21 +1,25 @@
 import { generateGoaliePatientReply } from './ai/ai';
 import { buildGoalieContext, PatientProfile, GoalieChatTurn } from './response-level/prompt-builder';
-import { checkInAskInstruction, CHECK_IN_TOPICS, checkInCompleteReply, topicAt } from './state-level/goalie-checkin';
-import { assessPatientTone, deriveReadiness } from './state-level/goalie-classifier';
+import { assessPatientTone } from './state-level/goalie-classifier';
+import { 
+  StateMachineData, 
+  createInitialState, 
+  computeTurnControls, 
+  transition, 
+  buildDirectiveInstruction
+} from './state-level/goalie-state-machine';
 
 export interface ChatSession {
   patient: PatientProfile;
   turns: GoalieChatTurn[];
-  checkInStep: number;
-  checkInSkipCount: number;
-  coveredTopics: string[];
+  stateMachine: StateMachineData;
   isComplete: boolean;
   lastAssistantText: string;
 }
 
 const sessions: Record<string, ChatSession> = {};
 
-export async function handleChatMessage(sessionId: string, message: string): Promise<string> {
+export async function handleChatMessage(sessionId: string, message: string, messageId: string = Math.random().toString()): Promise<string> {
   let session = sessions[sessionId];
 
   if (!session) {
@@ -23,79 +27,62 @@ export async function handleChatMessage(sessionId: string, message: string): Pro
   }
 
   if (session.isComplete) {
-    return checkInCompleteReply();
+    return "This month's check-in is already complete. We'll reach out next month. If something urgent comes up, contact your Care Manager.";
   }
 
-  const currentTopic = topicAt(session.checkInStep);
+  const currentTopicId = session.stateMachine.topicOrder[session.stateMachine.currentTopicIndex];
   const classifier = await assessPatientTone(message, {
-    priorSentiment: 'neutral',
-    currentTopicId: currentTopic?.id,
+    priorSentiment: session.stateMachine.priorSentiment,
+    currentTopicId: currentTopicId,
     lastNurseMessage: session.lastAssistantText
   });
 
-  const isEmergency = classifier.flow === 'emergency';
-  const isWrapUp = classifier.flow === 'wrap_up';
+  const isRpm = session.patient.programs?.toLowerCase().includes('rpm') || false;
 
-  if (isWrapUp || isEmergency) {
+  const { nextState, directive, sideEffects } = transition(
+    session.stateMachine, 
+    classifier, 
+    { isRpm, messageId }
+  );
+
+  session.stateMachine = nextState;
+
+  if (nextState.state === 'OPTED_OUT' || nextState.state === 'CLOSED' || nextState.state === 'HANDOFF') {
     session.isComplete = true;
-    if (isEmergency) {
-      return "If this is a medical emergency, please dial 911 or visit the nearest emergency room immediately. I am notifying your Care Manager.";
-    }
   }
 
-  const isSkip = classifier.flow === 'skip';
-  if (isSkip) {
-    session.checkInSkipCount++;
-    if (session.checkInSkipCount >= 3) {
-      session.isComplete = true;
-      return "Understood — we'll leave the rest for next time. This month's check-in is done. We'll be in touch next month.";
-    }
+  const instruction = buildDirectiveInstruction(directive, nextState);
+  const turnControls = computeTurnControls(nextState);
+
+  let reply = "";
+
+  if (directive === 'emergency') {
+    reply = "If this is a medical emergency, please dial 911 or visit the nearest emergency room immediately. I am notifying your Care Manager.";
+  } else if (directive === 'not_the_patient') {
+    reply = "Thank you for letting me know. For privacy reasons, I'll pause our check-in here and ask the Care Manager to follow up.";
+  } else if (directive === 'reschedule') {
+    reply = "No problem. I will have your Care Manager reach out so we can find a better time.";
+  } else {
+    const systemPrompt = buildGoalieContext({
+      patient: session.patient,
+      turnControls: {
+        useAddressThisTurn: turnControls.useAddressThisTurn,
+        followupsRemaining: turnControls.followupsRemaining,
+        canOfferCareManager: turnControls.canOfferCareManager,
+        bannedOpeners: turnControls.bannedOpeners,
+        checkInInstruction: instruction
+      }
+    });
+    reply = await generateGoaliePatientReply(systemPrompt, message, 1000, session.turns);
   }
-
-  const readyForQuestions = deriveReadiness(classifier, false);
-  if (readyForQuestions && !isSkip) {
-    if (currentTopic) {
-      session.coveredTopics.push(currentTopic.id);
-    }
-    session.checkInStep++;
-    if (session.checkInStep >= CHECK_IN_TOPICS.length) {
-      session.isComplete = true;
-      return checkInCompleteReply();
-    }
-  }
-
-  const newTopic = topicAt(session.checkInStep) || CHECK_IN_TOPICS[0];
-
-  const shouldHoldScript = !readyForQuestions || 
-    classifier.sentiment === 'distressed' || 
-    classifier.sentiment === 'frustrated' || 
-    classifier.sentiment === 'low_mood' || 
-    classifier.askedHowAreYou || 
-    classifier.flow === 'unclear' || 
-    classifier.askedAboutChart;
-
-  const instruction = checkInAskInstruction({
-    topic: newTopic,
-    hold: shouldHoldScript,
-    isRpm: true,
-    coveredIds: session.coveredTopics
-  });
-
-  const systemPrompt = buildGoalieContext({
-    patient: session.patient,
-    turnControls: {
-      useAddressThisTurn: session.turns.length === 0,
-      followupsRemaining: 0,
-      canOfferCareManager: false,
-      bannedOpeners: [],
-      checkInInstruction: instruction
-    }
-  });
-  const reply = await generateGoaliePatientReply(systemPrompt, message, 1000, session.turns);
 
   session.turns.push({ role: 'user', content: message });
   session.turns.push({ role: 'assistant', content: reply });
   session.lastAssistantText = reply;
+
+  if (turnControls.useAddressThisTurn) {
+    session.stateMachine.lastHonorificTurnIndex = session.stateMachine.turnIndex;
+  }
 
   return reply;
 }
@@ -104,9 +91,7 @@ export function createSession(sessionId: string, patient: PatientProfile) {
   sessions[sessionId] = {
     patient,
     turns: [],
-    checkInStep: 0,
-    checkInSkipCount: 0,
-    coveredTopics: [],
+    stateMachine: createInitialState('m1'),
     isComplete: false,
     lastAssistantText: ''
   };
