@@ -1,4 +1,4 @@
-import type { ToneAssessment } from "./goalie-tone";
+import type { ClassifierResult } from "./goalie-classifier";
 /**
  * The monthly check-in as a list of questions, not a conversation the model
  * is trusted to finish.
@@ -187,7 +187,7 @@ export type ChartGroundOpts = {
   lastAssistantText?: string;
   priorAssistantTexts?: string[];
   isRpm?: boolean;
-  tone?: ToneAssessment;
+  tone?: ClassifierResult;
 };
 
 function isRecordedChartField(raw: string | undefined): boolean {
@@ -332,13 +332,13 @@ export function isChartGroundTopic(topicId: string): boolean {
 }
 
 /** Checklist items this line clearly answers — from the state classifier. */
-export function checklistCredits(tone: ToneAssessment | null | undefined): string[] {
+export function checklistCredits(tone: ClassifierResult | null | undefined): string[] {
   return asCoveredIds(tone?.creditedTopics ?? []);
 }
 
 /** Which checklist item they are talking about — from the state classifier. */
 export function spokenChecklistTopic(
-  tone: ToneAssessment | null | undefined,
+  tone: ClassifierResult | null | undefined,
   currentTopicId?: string
 ): string | undefined {
   const spoken = String(tone?.spokenTopicId ?? "").trim();
@@ -349,7 +349,7 @@ export function spokenChecklistTopic(
 function medicationsCompareReply(
   userMessage: string,
   values: ChartFailOpenValues,
-  tone?: ToneAssessment
+  tone?: ClassifierResult
 ): string {
   const names = chartMedicationNames(values);
   const mentioned = userNamedChartMeds(userMessage, names);
@@ -363,7 +363,7 @@ function medicationsCompareReply(
     }
     return `On the care plan I have: ${flattenChartLines(String(values.PATIENT_MEDICATIONS))}. Does that match what you're taking?`;
   }
-  if (tone?.takingAsPrescribed || tone?.bareYes) {
+  if (tone?.medicationAnswer === 'as_prescribed' || tone?.medicationAnswer === 'bare_yes') {
     return "That's good to hear you are taking your medicines.";
   }
   if (!names.length) {
@@ -383,15 +383,15 @@ function readingsAskOrCompare(
   userMessage: string,
   values: ChartFailOpenValues,
   isRpm: boolean,
-  tone?: ToneAssessment
+  tone?: ClassifierResult
 ): string {
   if (isRpm) {
-    if (tone?.hasHomeReading) {
+    if (tone?.readings && tone.readings.length > 0) {
       return "I'll keep that number in mind. We don't need to recap the device readings — those already come through to the office.";
     }
     return "We don't need to recap device readings — those already come through to the office.";
   }
-  if (tone?.hasHomeReading) {
+  if (tone?.readings && tone.readings.length > 0) {
     const abn = isRecordedChartField(values.PATIENT_READINGS_ABNORMAL)
       ? flattenChartLines(String(values.PATIENT_READINGS_ABNORMAL))
       : "";
@@ -419,7 +419,7 @@ export function chartGroundedReply(
       // Bare yes / taking-as-prescribed fully satisfies the beat — KB forbids
       // asking them to name or list medicines. Compare only when they volunteered
       // names, asked for the chart slice, or otherwise gave compare content.
-      if (tone?.bareYes || tone?.takingAsPrescribed) {
+      if (tone?.medicationAnswer === 'bare_yes' || tone?.medicationAnswer === 'as_prescribed') {
         return "That's good to hear you are taking your medicines.";
       }
       return compare || slice
@@ -489,11 +489,11 @@ export function checkInFailOpen(args: {
   isRpm?: boolean;
   lastAssistantText?: string;
   priorAssistantTexts?: string[];
-  tone?: ToneAssessment;
+  tone?: ClassifierResult;
 }): string {
   const user = args.userMessage ?? "";
   const tone = args.tone;
-  if (args.mood || tone?.lowMood) return CHECK_IN_MOOD_SAFE_FALLBACK;
+  if (args.mood || tone?.sentiment === 'low_mood') return CHECK_IN_MOOD_SAFE_FALLBACK;
   if (tone?.askedHowAreYou) {
     const beatAsk = chartGroundedReply(args.topicId, args.values, {
       userMessage: "",
@@ -516,10 +516,10 @@ export function checkInFailOpen(args: {
     const namedChart = chartGroundedReply(named, args.values, opts);
     if (namedChart) return namedChart;
   }
-  if (args.hold && tone?.unclear) return CHECK_IN_HOLD_SAFE_FALLBACK;
+  if (args.hold && tone?.flow === 'unclear') return CHECK_IN_HOLD_SAFE_FALLBACK;
   const chart = chartGroundedReply(args.topicId, args.values, opts);
   if (chart) {
-    if (args.isRpm && tone?.hasHomeReading && args.topicId !== "readings") {
+    if (args.isRpm && tone?.readings && tone.readings.length > 0 && args.topicId !== "readings") {
       return `Got it. We don't need to recap device readings — those already come through. ${chart}`;
     }
     return chart;

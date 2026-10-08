@@ -1,7 +1,7 @@
 import { generateGoaliePatientReply } from './ai/ai';
 import { buildGoalieContext, PatientProfile, GoalieChatTurn } from './response-level/prompt-builder';
 import { checkInAskInstruction, CHECK_IN_TOPICS, checkInCompleteReply, topicAt } from './state-level/goalie-checkin';
-import { assessPatientTone, ToneAssessment, shouldHoldScript } from './state-level/goalie-tone';
+import { assessPatientTone, deriveReadiness } from './state-level/goalie-classifier';
 
 export interface ChatSession {
   patient: PatientProfile;
@@ -27,20 +27,24 @@ export async function handleChatMessage(sessionId: string, message: string): Pro
   }
 
   const currentTopic = topicAt(session.checkInStep);
-  const tone = await assessPatientTone(message, {
-    priorTone: 'calm',
+  const classifier = await assessPatientTone(message, {
+    priorSentiment: 'neutral',
     currentTopicId: currentTopic?.id,
-    lastAssistantText: session.lastAssistantText
+    lastNurseMessage: session.lastAssistantText
   });
 
-  if (tone.wrapUpCheckIn || tone.emergency) {
+  const isEmergency = classifier.flow === 'emergency';
+  const isWrapUp = classifier.flow === 'wrap_up';
+
+  if (isWrapUp || isEmergency) {
     session.isComplete = true;
-    if (tone.emergency) {
+    if (isEmergency) {
       return "If this is a medical emergency, please dial 911 or visit the nearest emergency room immediately. I am notifying your Care Manager.";
     }
   }
 
-  if (tone.skipQuestion) {
+  const isSkip = classifier.flow === 'skip';
+  if (isSkip) {
     session.checkInSkipCount++;
     if (session.checkInSkipCount >= 3) {
       session.isComplete = true;
@@ -48,7 +52,8 @@ export async function handleChatMessage(sessionId: string, message: string): Pro
     }
   }
 
-  if (tone.readyForQuestions && !tone.skipQuestion) {
+  const readyForQuestions = deriveReadiness(classifier, false);
+  if (readyForQuestions && !isSkip) {
     if (currentTopic) {
       session.coveredTopics.push(currentTopic.id);
     }
@@ -61,9 +66,17 @@ export async function handleChatMessage(sessionId: string, message: string): Pro
 
   const newTopic = topicAt(session.checkInStep) || CHECK_IN_TOPICS[0];
 
+  const shouldHoldScript = !readyForQuestions || 
+    classifier.sentiment === 'distressed' || 
+    classifier.sentiment === 'frustrated' || 
+    classifier.sentiment === 'low_mood' || 
+    classifier.askedHowAreYou || 
+    classifier.flow === 'unclear' || 
+    classifier.askedAboutChart;
+
   const instruction = checkInAskInstruction({
     topic: newTopic,
-    hold: shouldHoldScript(tone),
+    hold: shouldHoldScript,
     isRpm: true,
     coveredIds: session.coveredTopics
   });
