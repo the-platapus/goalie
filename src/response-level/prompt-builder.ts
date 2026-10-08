@@ -109,15 +109,19 @@ function replacePlaceholdersSafely(template: string, replacements: Record<string
     return match;
   });
 
-  const remaining = prompt.match(/\{\{[A-Z_]+\}\}/g);
-  if (remaining && remaining.length > 0) {
-    const errorMsg = `Unreplaced placeholders found in prompt: ${remaining.join(', ')}`;
+  const placeholdersInTemplate = template.match(/\{\{[A-Z_]+\}\}/g) || [];
+  const missing = placeholdersInTemplate.filter(p => {
+    return !(p in replacements);
+  });
+
+  if (missing.length > 0) {
+    const errorMsg = `Unreplaced placeholders found in prompt: ${missing.join(', ')}`;
     const env = process.env.NODE_ENV;
     if (env === 'test' || env === 'development') {
       throw new Error(errorMsg);
     } else {
       console.error(`[goalie] ${errorMsg}`);
-      prompt = prompt.replace(/\{\{[A-Z_]+\}\}/g, '');
+      prompt = prompt.replace(new RegExp(missing.map(m => m.replace(/([{}])/g, '\\$1')).join('|'), 'g'), '');
     }
   }
 

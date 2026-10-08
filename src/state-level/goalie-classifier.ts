@@ -4,7 +4,7 @@ import { SELF_HARM_PHRASES, READING_BANDS } from './classifier-config';
 
 export type FlowType = "continue" | "skip" | "wrap_up" | "emergency" | "resume" | "unclear";
 export type SentimentType = "neutral" | "low_mood" | "distressed" | "frustrated";
-export type SpecialRequestType = "billing" | "reschedule" | "not_the_patient" | "asked_if_automated" | "opt_out" | null;
+export type SpecialRequestType = "billing" | "reschedule" | "not_the_patient" | "asked_if_automated" | "opt_out" | "help" | "subscribe" | "self_harm" | null;
 export type MedicationAnswerType = "bare_yes" | "as_prescribed" | "named" | "negative" | "reason_given" | null;
 export type NextCheckinAnswerType = "confirmed" | "declined" | null;
 
@@ -231,7 +231,8 @@ export async function assessPatientTone(
     // but if they reach here we wrap up so we don't treat it as a check-in answer
     return normalizeClassification({
       ...SAFE_DEFAULT_CLASSIFIER_RESULT,
-      flow: 'wrap_up',
+      flow: 'continue', // State should be unchanged for HELP, so flow must be continue
+      specialRequest: keywordMatch,
       confidence: 'high'
     });
   }
@@ -240,6 +241,7 @@ export async function assessPatientTone(
     return normalizeClassification({
       ...SAFE_DEFAULT_CLASSIFIER_RESULT,
       flow: 'emergency',
+      specialRequest: 'self_harm',
       urgent: false,
       symptomPresent: true,
       confidence: 'high'

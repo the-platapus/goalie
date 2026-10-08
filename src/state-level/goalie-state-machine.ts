@@ -47,7 +47,10 @@ export type DirectiveType =
   | 'reschedule'
   | 'chart_answer'
   | 'resume_pause'
-  | 'closing';
+  | 'closing'
+  | 'help'
+  | 'subscribe'
+  | 'self_harm';
 
 export interface TransitionContext {
   isRpm: boolean;
@@ -139,6 +142,12 @@ export function transition(
   }
 
   // 2. Emergency
+  if (classification.specialRequest === 'self_harm') {
+    nextState.state = 'HANDOFF';
+    sideEffects.push({ alertToCareManager: 'self_harm', alertReason: 'Self-harm risk detected' });
+    return { nextState, directive: 'self_harm', sideEffects };
+  }
+
   if (classification.flow === 'emergency') {
     nextState.state = 'HANDOFF';
     sideEffects.push({ alertToCareManager: 'emergency', alertReason: classification.namedProblem || 'Emergency condition detected' });
@@ -161,6 +170,14 @@ export function transition(
   if (classification.specialRequest === 'reschedule') {
     nextState.state = 'DEFERRED';
     return { nextState, directive: 'reschedule', sideEffects };
+  }
+
+  if (classification.specialRequest === 'help') {
+    return { nextState, directive: 'help', sideEffects };
+  }
+  
+  if (classification.specialRequest === 'subscribe') {
+    return { nextState, directive: 'subscribe', sideEffects };
   }
   
   // 3. Wrap-up
@@ -332,5 +349,9 @@ export function buildDirectiveInstruction(directive: DirectiveType, state: State
       return `They are ready to resume the check-in. Acknowledge this, and ask your next question about ${topicLabel}.`;
     case 'closing':
       return `Wrap up the conversation warmly. Tell them that's everything for this month's check-in. Let them know they can reach out to their Care Manager if anything changes.`;
+    case 'help':
+    case 'subscribe':
+    case 'self_harm':
+      return ""; // These directives trigger hardcoded replies and bypass the LLM.
   }
 }

@@ -5,7 +5,7 @@
 export const SELF_HARM_PHRASES = [
   // exact or partial matches indicating imminent harm. 
   // must be conservative to avoid false positives like "my head is killing me"
-  /kill myself/i,
+  /kill(ing)? myself/i,
   /want to die/i,
   /end it all/i,
   /better off dead/i,

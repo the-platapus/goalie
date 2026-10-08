@@ -24,7 +24,10 @@ export const FALLBACK_REPLIES: Record<DirectiveType, string> = {
   reschedule: "No problem. I will have your Care Manager reach out so we can find a better time.",
   chart_answer: "I want to make sure I give you the right information. Let me have your Care Manager look into this and get back to you.",
   resume_pause: "Okay, we can continue now.",
-  closing: "That's everything for this month's check-in. We'll be in touch next month. If something changes before then, reach out to your Care Manager."
+  closing: "That's everything for this month's check-in. We'll be in touch next month. If something changes before then, reach out to your Care Manager.",
+  help: "This is the automated assistant for your Care Manager. Reply STOP to cancel or START to resubscribe.",
+  subscribe: "You have been resubscribed.",
+  self_harm: "If you are in immediate danger, please dial 911. You can also call or text 988 to reach the Suicide & Crisis Lifeline. I am notifying your Care Manager."
 };
 
 export function validateNurseReply(text: string, ctx: ReplyValidatorContext): { valid: boolean; reply: string; reason?: string } {

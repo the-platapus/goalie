@@ -79,6 +79,14 @@ export async function handleChatMessage(sessionId: string, message: string, mess
     reply = "Thank you for letting me know. For privacy reasons, I'll pause our check-in here and ask the Care Manager to follow up.";
   } else if (directive === 'reschedule') {
     reply = "No problem. I will have your Care Manager reach out so we can find a better time.";
+  } else if (nextState.state === 'OPTED_OUT') {
+    reply = "You have been unsubscribed and will not receive further messages.";
+  } else if (directive === 'help') {
+    reply = "This is the automated assistant for your Care Manager. Reply STOP to cancel or START to resubscribe.";
+  } else if (directive === 'subscribe') {
+    reply = "You have been resubscribed.";
+  } else if (directive === 'self_harm') {
+    reply = "If you are in immediate danger, please dial 911. You can also call or text 988 to reach the Suicide & Crisis Lifeline. I am notifying your Care Manager.";
   } else {
     systemPrompt = buildGoalieContext({
       patient: session.patient,
