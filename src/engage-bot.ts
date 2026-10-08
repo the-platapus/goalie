@@ -2,6 +2,7 @@ import { generateGoaliePatientReply } from './ai/ai';
 import { buildGoalieContext, PatientProfile, GoalieChatTurn } from './response-level/prompt-builder';
 import { generateHardcodedGreeting } from './state-level/goalie-checkin';
 import { assessPatientTone } from './state-level/goalie-classifier';
+import { validateNurseReply } from './response-level/reply-validator';
 import { 
   StateMachineData, 
   createInitialState, 
@@ -132,6 +133,11 @@ export class EngageBot {
         }
       });
       reply = await generateGoaliePatientReply(systemPrompt, message, 1000, session.turns);
+      const valResult = validateNurseReply(reply, { directive });
+      if (!valResult.valid) {
+        console.warn(`[goalie] Reply validation failed (${valResult.reason}): ${reply}`);
+      }
+      reply = valResult.reply;
     }
 
     session.turns.push({ role: 'user', content: message });

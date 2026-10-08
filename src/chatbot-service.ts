@@ -1,6 +1,7 @@
 import { generateGoaliePatientReply } from './ai/ai';
 import { buildGoalieContext, PatientProfile, GoalieChatTurn } from './response-level/prompt-builder';
 import { assessPatientTone } from './state-level/goalie-classifier';
+import { validateNurseReply } from './response-level/reply-validator';
 import { 
   StateMachineData, 
   createInitialState, 
@@ -74,6 +75,11 @@ export async function handleChatMessage(sessionId: string, message: string, mess
       }
     });
     reply = await generateGoaliePatientReply(systemPrompt, message, 1000, session.turns);
+    const valResult = validateNurseReply(reply, { directive });
+    if (!valResult.valid) {
+      console.warn(`[goalie] Reply validation failed (${valResult.reason}): ${reply}`);
+    }
+    reply = valResult.reply;
   }
 
   session.turns.push({ role: 'user', content: message });
