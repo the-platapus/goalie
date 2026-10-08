@@ -16,16 +16,16 @@ export async function createChatCompletion(params: any): Promise<any> {
   }
 }
 
-export function extractJsonObject(text: string): any {
+export function extractJsonObject(text: string): { ok: boolean; value?: any } {
   try {
     const match = text.match(/\{[\s\S]*\}/);
     if (match) {
-      return JSON.parse(match[0]);
+      return { ok: true, value: JSON.parse(match[0]) };
     }
-    return JSON.parse(text);
+    return { ok: true, value: JSON.parse(text) };
   } catch (e) {
     console.error('Failed to parse JSON', text);
-    return null;
+    return { ok: false };
   }
 }
 

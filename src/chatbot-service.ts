@@ -68,7 +68,16 @@ export async function handleChatMessage(sessionId: string, message: string): Pro
     coveredIds: session.coveredTopics
   });
 
-  const systemPrompt = buildGoalieContext(session.patient, instruction, 0, '');
+  const systemPrompt = buildGoalieContext({
+    patient: session.patient,
+    turnControls: {
+      useAddressThisTurn: session.turns.length === 0,
+      followupsRemaining: 0,
+      canOfferCareManager: false,
+      bannedOpeners: [],
+      checkInInstruction: instruction
+    }
+  });
   const reply = await generateGoaliePatientReply(systemPrompt, message, 1000, session.turns);
 
   session.turns.push({ role: 'user', content: message });
