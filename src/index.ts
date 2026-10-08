@@ -1,5 +1,5 @@
 import express from 'express';
-import { handleChatMessage, createSession } from './chatbot-service';
+import { handleChatMessage, createSession, sessions } from './chatbot-service';
 
 const app = express();
 app.use(express.json());
@@ -51,6 +51,12 @@ app.post('/api/chat', async (req, res) => {
   }
 
   try {
+    const sessionObj = sessions[sessionId];
+    if (sessionObj && sessionObj.stateMachine?.state === 'OPTED_OUT') {
+      console.warn(`[API] Rejecting outbound SMS to OPTED_OUT patient (session: ${sessionId})`);
+      return res.status(403).json({ error: 'Cannot send messages to an opted-out patient.' });
+    }
+
     const reply = await handleChatMessage(sessionId, message);
     res.json({ reply });
   } catch (error: any) {

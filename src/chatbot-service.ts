@@ -2,6 +2,8 @@ import { generateGoaliePatientReply } from './ai/ai';
 import { buildGoalieContext, PatientProfile, GoalieChatTurn } from './response-level/prompt-builder';
 import { assessPatientTone } from './state-level/goalie-classifier';
 import { validateNurseReply } from './response-level/reply-validator';
+import { sendCareManagerAlert } from './state-level/escalations';
+import { appendAuditRecord } from './state-level/audit';
 import { 
   StateMachineData, 
   createInitialState, 
@@ -18,7 +20,7 @@ export interface ChatSession {
   lastAssistantText: string;
 }
 
-const sessions: Record<string, ChatSession> = {};
+export const sessions: Record<string, ChatSession> = {};
 
 export async function handleChatMessage(sessionId: string, message: string, messageId: string = Math.random().toString()): Promise<string> {
   let session = sessions[sessionId];
@@ -52,10 +54,24 @@ export async function handleChatMessage(sessionId: string, message: string, mess
     session.isComplete = true;
   }
 
+  // Fire side effects
+  for (const effect of sideEffects) {
+    if (effect.alertToCareManager) {
+      await sendCareManagerAlert(
+        sessionId,
+        sessionId,
+        effect.alertToCareManager,
+        effect.alertReason || 'No reason provided'
+      );
+    }
+  }
+
   const instruction = buildDirectiveInstruction(directive, nextState);
   const turnControls = computeTurnControls(nextState);
 
   let reply = "";
+  let systemPrompt = "";
+  let valResult: { valid: boolean; reason?: string; reply: string } = { valid: true, reply: reply };
 
   if (directive === 'emergency') {
     reply = "If this is a medical emergency, please dial 911 or visit the nearest emergency room immediately. I am notifying your Care Manager.";
@@ -64,7 +80,7 @@ export async function handleChatMessage(sessionId: string, message: string, mess
   } else if (directive === 'reschedule') {
     reply = "No problem. I will have your Care Manager reach out so we can find a better time.";
   } else {
-    const systemPrompt = buildGoalieContext({
+    systemPrompt = buildGoalieContext({
       patient: session.patient,
       turnControls: {
         useAddressThisTurn: turnControls.useAddressThisTurn,
@@ -75,12 +91,29 @@ export async function handleChatMessage(sessionId: string, message: string, mess
       }
     });
     reply = await generateGoaliePatientReply(systemPrompt, message, 1000, session.turns);
-    const valResult = validateNurseReply(reply, { directive });
+    valResult = validateNurseReply(reply, { directive });
     if (!valResult.valid) {
       console.warn(`[goalie] Reply validation failed (${valResult.reason}): ${reply}`);
     }
     reply = valResult.reply;
   }
+
+  await appendAuditRecord({
+    sessionId,
+    patientMessage: message,
+    classifierJSON: classifier,
+    decisionLog: {
+      priorState: JSON.parse(JSON.stringify(session.stateMachine)),
+      transitionContext: { isRpm, messageId },
+      nextState,
+      directive,
+      sideEffects
+    },
+    nursePrompt: typeof systemPrompt !== 'undefined' ? systemPrompt : '',
+    nurseRawResponse: reply,
+    validationResult: typeof valResult !== 'undefined' ? valResult : { valid: true },
+    finalReply: reply
+  });
 
   session.turns.push({ role: 'user', content: message });
   session.turns.push({ role: 'assistant', content: reply });
